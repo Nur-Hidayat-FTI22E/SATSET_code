@@ -1,0 +1,40 @@
+---
+# SATSET — Event-Driven Ansible (EDA) Rulebook
+# Menghubungkan deteksi BRAIN ke aksi HAND melalui MQTT events.
+#
+# Jalankan dengan:
+#   ansible-rulebook --rulebook satset_rulebook.yml -i ../inventory.yml --verbose
+#
+# Pastikan ansible-rulebook dan collection ansible.eda sudah terinstall:
+#   pip install ansible-rulebook
+#   ansible-galaxy collection install ansible.eda
+
+---
+- name: SATSET Self-Healing Rulebook
+  hosts: all
+
+  sources:
+    - ansible.eda.mqtt:
+        host: "{{ lookup('env', 'MQTT_HOST') | default('localhost') }}"
+        port: "{{ lookup('env', 'MQTT_PORT') | default(1883) | int }}"
+        topic: satset/brain/threat
+
+  rules:
+    # ── Rule 1: DDoS Attack Detected — Redeploy Service ──────────────────
+    - name: Redeploy on high threat score
+      condition: event.threat_score is defined and event.threat_score | float >= 0.85
+      action:
+        run_playbook:
+          name: playbooks/redeploy_service.yml
+          extra_vars:
+            threat_score: "{{ event.threat_score }}"
+            timestamp:    "{{ event.timestamp }}"
+
+    # ── Rule 2: Update Firewall on confirmed attack ────────────────────
+    - name: Update iptables firewall on attack
+      condition: event.is_attack is defined and event.is_attack == true
+      action:
+        run_playbook:
+          name: playbooks/update_firewall.yml
+          extra_vars:
+            threat_score: "{{ event.threat_score }}"

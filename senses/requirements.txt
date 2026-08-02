@@ -1,0 +1,5 @@
+paho-mqtt>=1.6.1
+influxdb-client>=1.36.0
+numpy>=1.24.0
+python-dotenv>=1.0.0
+psutil>=5.9.0

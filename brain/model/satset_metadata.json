@@ -1,0 +1,23 @@
+{
+  "total_samples": 14940602,
+  "training_samples": 11952481,
+  "test_samples": 2988121,
+  "timesteps": 16,
+  "features": [
+    "packet_size",
+    "packet_rate",
+    "interval",
+    "cache_misses",
+    "instruction_retired",
+    "branch_misses"
+  ],
+  "class_distribution": {
+    "normal": 3227146,
+    "attack": 11713456
+  },
+  "source_distribution": {
+    "CIC-IoT-2023": 11354044,
+    "Edge-IIoTset": 2377001,
+    "IoT-23": 1209557
+  }
+}

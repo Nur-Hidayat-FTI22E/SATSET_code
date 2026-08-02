@@ -1,0 +1,70 @@
+---
+# SATSET — Playbook: Redeploy Infected Service
+# Dipanggil oleh EDA Rulebook atau heal_trigger.py
+# ketika SNN mendeteksi serangan DDoS (threat_score >= 0.85)
+#
+# Aksi:
+#   1. Identifikasi container yang mungkin terinfeksi
+#   2. Restart container tersebut via Docker
+#   3. Validasi container kembali running (MTTR measurement)
+#   4. Publish healing event ke MQTT dan InfluxDB
+
+- name: SATSET — Redeploy Infected Service
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    threat_score: "{{ threat_score | default(0.9) }}"
+    timestamp: "{{ timestamp | default(ansible_date_time.iso8601) }}"
+    compose_dir: "{{ playbook_dir }}/../../.."
+    target_services:
+      - satset-mosquitto
+    heal_start_time: "{{ ansible_date_time.epoch }}"
+
+  tasks:
+    - name: "📋 Log healing event start"
+      ansible.builtin.debug:
+        msg: >
+          [SATSET Hand] 🩺 Healing triggered!
+          Threat score={{ threat_score }} | Time={{ timestamp }}
+
+    - name: "🔄 Restart infected containers"
+      community.docker.docker_container:
+        name: "{{ item }}"
+        state: started
+        restart: true
+      loop: "{{ target_services }}"
+      ignore_errors: true
+      register: restart_result
+
+    - name: "⏱️ Wait for containers to be healthy (max 30s)"
+      community.docker.docker_container_info:
+        name: "{{ item }}"
+      loop: "{{ target_services }}"
+      register: container_info
+      until: >
+        container_info.results | selectattr('container.State.Running', 'eq', true) | list | length
+        == target_services | length
+      retries: 30
+      delay: 1
+      ignore_errors: true
+
+    - name: "📊 Calculate MTTR"
+      ansible.builtin.set_fact:
+        mttr_seconds: "{{ ansible_date_time.epoch | int - heal_start_time | int }}"
+
+    - name: "✅ Print MTTR result"
+      ansible.builtin.debug:
+        msg: "MTTR: {{ mttr_seconds }}s | Target: <1s"
+
+    - name: "📡 Publish healing event to MQTT"
+      community.general.mqtt:
+        server: "{{ lookup('env', 'MQTT_HOST') | default('localhost') }}"
+        port: "{{ lookup('env', 'MQTT_PORT') | default(1883) | int }}"
+        topic: satset/hand/healed
+        payload: >
+          {"action": "redeploy", "mttr_s": {{ mttr_seconds }},
+           "services": {{ target_services | to_json }},
+           "trigger_score": {{ threat_score }}}
+        qos: 1
+      ignore_errors: true

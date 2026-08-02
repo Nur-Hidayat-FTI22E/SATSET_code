@@ -1,0 +1,62 @@
+---
+# SATSET — Playbook: Update iptables Firewall
+# Dipanggil saat serangan terdeteksi.
+# Memblok IP sumber yang mencurigakan berdasarkan data MQTT payload.
+#
+# Catatan: Untuk dev environment, ini mensimulasikan iptables tanpa benar-benar
+# memblok traffic (menggunakan --dry-run mode).
+
+- name: SATSET — Update iptables Firewall Rules
+  hosts: localhost
+  gather_facts: false
+  become: false   # Set true di production (needs sudo)
+
+  vars:
+    threat_score: "{{ threat_score | default(0.9) }}"
+    # Daftar IP yang akan diblok (di production, diisi dari InfluxDB query)
+    suspicious_ips:
+      - "10.0.0.0/8"   # RFC1918 internal (simulasi sumber DDoS lokal)
+
+  tasks:
+    - name: "📋 Log firewall update"
+      ansible.builtin.debug:
+        msg: >
+          [SATSET Hand] 🔥 Firewall update triggered!
+          Threat score={{ threat_score }}
+
+    - name: "🔍 Check if iptables available"
+      ansible.builtin.command: which iptables
+      register: iptables_check
+      changed_when: false
+      failed_when: false
+
+    - name: "🛡️ Apply iptables DENY rules (simulation mode)"
+      ansible.builtin.debug:
+        msg: >
+          [SIMULATION] iptables -I INPUT -s {{ item }} -j DROP
+          (Set become: true and remove simulation to apply)
+      loop: "{{ suspicious_ips }}"
+      when: iptables_check.rc != 0
+
+    - name: "🛡️ Apply real iptables rules (production)"
+      ansible.builtin.iptables:
+        chain: INPUT
+        source: "{{ item }}"
+        jump: DROP
+        comment: "SATSET auto-block score={{ threat_score }}"
+      loop: "{{ suspicious_ips }}"
+      ignore_errors: true
+      when:
+        - iptables_check.rc == 0
+        - become is defined and become
+
+    - name: "📡 Log firewall update to MQTT"
+      community.general.mqtt:
+        server: "{{ lookup('env', 'MQTT_HOST') | default('localhost') }}"
+        port: "{{ lookup('env', 'MQTT_PORT') | default(1883) | int }}"
+        topic: satset/hand/firewall_updated
+        payload: >
+          {"action": "firewall_update", "blocked_ips": {{ suspicious_ips | to_json }},
+           "trigger_score": {{ threat_score }}}
+        qos: 1
+      ignore_errors: true

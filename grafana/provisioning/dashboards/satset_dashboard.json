@@ -1,0 +1,264 @@
+{
+  "__inputs": [],
+  "__requires": [
+    { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "10.4.0" },
+    { "type": "datasource", "id": "influxdb", "name": "InfluxDB", "version": "1.0.0" }
+  ],
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 10,
+      "title": "🔍 Network Layer Metrics",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "PF51A078FBCCC1962" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 15 },
+          "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 500 }] },
+          "unit": "pps"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+      "id": 1,
+      "options": { "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "query": "from(bucket: \"satset\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"network_stats\")\n  |> filter(fn: (r) => r._field == \"packet_rate\")\n  |> aggregateWindow(every: 1s, fn: mean)",
+          "refId": "A"
+        }
+      ],
+      "title": "📦 MQTT Packet Rate (pps)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "PF51A078FBCCC1962" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 15 },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+      "id": 2,
+      "targets": [
+        {
+          "query": "from(bucket: \"satset\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"network_stats\")\n  |> filter(fn: (r) => r._field == \"packet_size\")\n  |> aggregateWindow(every: 1s, fn: mean)",
+          "refId": "A"
+        }
+      ],
+      "title": "📏 Packet Size (bytes)",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "id": 11,
+      "title": "⚙️ Hardware Performance Counters (HPC)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "PF51A078FBCCC1962" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 10 },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 10 },
+      "id": 3,
+      "targets": [
+        {
+          "query": "from(bucket: \"satset\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"hpc_stats\")\n  |> filter(fn: (r) => r._field == \"cache_misses\")\n  |> aggregateWindow(every: 1s, fn: mean)",
+          "refId": "A"
+        }
+      ],
+      "title": "🔴 Cache Misses",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "PF51A078FBCCC1962" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 10 },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 10 },
+      "id": 4,
+      "targets": [
+        {
+          "query": "from(bucket: \"satset\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"hpc_stats\")\n  |> filter(fn: (r) => r._field == \"instructions_retired\")\n  |> aggregateWindow(every: 1s, fn: mean)",
+          "refId": "A"
+        }
+      ],
+      "title": "🟢 Instructions Retired",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "PF51A078FBCCC1962" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 10 },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 10 },
+      "id": 5,
+      "targets": [
+        {
+          "query": "from(bucket: \"satset\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"hpc_stats\")\n  |> filter(fn: (r) => r._field == \"branch_misses\")\n  |> aggregateWindow(every: 1s, fn: mean)",
+          "refId": "A"
+        }
+      ],
+      "title": "🟡 Branch Misses",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
+      "id": 12,
+      "title": "🧠 SNN Brain — Threat Intelligence",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "PF51A078FBCCC1962" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.5 },
+              { "color": "orange", "value": 0.7 },
+              { "color": "red", "value": 0.85 }
+            ]
+          },
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "unit": "percentunit"
+        }
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 19 },
+      "id": 6,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": true, "showThresholdMarkers": true },
+      "targets": [
+        {
+          "query": "from(bucket: \"satset\")\n  |> range(start: -1m)\n  |> filter(fn: (r) => r._measurement == \"brain_output\")\n  |> filter(fn: (r) => r._field == \"threat_score\")\n  |> last()",
+          "refId": "A"
+        }
+      ],
+      "title": "⚠️ Threat Score",
+      "type": "gauge"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "PF51A078FBCCC1962" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 0.85 }
+            ]
+          },
+          "mappings": [
+            { "options": { "0": { "color": "green", "text": "NORMAL" }, "1": { "color": "red", "text": "ATTACK DETECTED" } }, "type": "value" }
+          ],
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 19 },
+      "id": 7,
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        {
+          "query": "from(bucket: \"satset\")\n  |> range(start: -1m)\n  |> filter(fn: (r) => r._measurement == \"brain_output\")\n  |> filter(fn: (r) => r._field == \"is_attack\")\n  |> last()",
+          "refId": "A"
+        }
+      ],
+      "title": "🚨 Attack Status",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "PF51A078FBCCC1962" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 20 },
+          "max": 1,
+          "min": 0,
+          "unit": "percentunit",
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 0.85 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 19 },
+      "id": 8,
+      "targets": [
+        {
+          "query": "from(bucket: \"satset\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"brain_output\")\n  |> filter(fn: (r) => r._field == \"threat_score\")\n  |> aggregateWindow(every: 1s, fn: mean)",
+          "refId": "A"
+        }
+      ],
+      "title": "📈 Threat Score History",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
+      "id": 13,
+      "title": "🤖 Self-Healing Events (Hand)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "PF51A078FBCCC1962" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" }
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 28 },
+      "id": 9,
+      "options": {
+        "frameIndex": 0,
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "Time" }]
+      },
+      "targets": [
+        {
+          "query": "from(bucket: \"satset\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"healing_events\")\n  |> sort(columns: [\"_time\"], desc: true)\n  |> limit(n: 20)",
+          "refId": "A"
+        }
+      ],
+      "title": "🩺 Healing Event Log",
+      "type": "table"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "tags": ["satset", "security", "iot", "neuromorphic"],
+  "time": { "from": "now-15m", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "SATSET Digital Twin — Security Dashboard",
+  "uid": "satset-digital-twin-v1",
+  "version": 1
+}
