@@ -1,0 +1,53 @@
+{
+  "features_all": [
+    "n_packets",
+    "total_bytes",
+    "cache_misses",
+    "instructions",
+    "branch_misses"
+  ],
+  "transform": "log1p_then_minmax",
+  "encoding": "direct",
+  "scaler_min": [
+    3.761200189590454,
+    8.988321304321289,
+    13.696450233459473,
+    19.57400131225586,
+    13.768046379089355
+  ],
+  "scaler_max": [
+    13.131614685058594,
+    18.802629470825195,
+    18.192365646362305,
+    23.063339233398438,
+    18.093387603759766
+  ],
+  "model_net": {
+    "tag": "NET",
+    "features": 2,
+    "acc": 0.8202764976958525,
+    "precision": 1.0,
+    "recall": 0.6929133858267716,
+    "specificity": 1.0,
+    "f1": 0.8186046511627907,
+    "tp": 88,
+    "fp": 0,
+    "fn": 39,
+    "tn": 90,
+    "latency_ms": 11.374883651733398
+  },
+  "model_net_hpc": {
+    "tag": "NET+HPC",
+    "features": 5,
+    "acc": 0.9907834101382489,
+    "precision": 1.0,
+    "recall": 0.984251968503937,
+    "specificity": 1.0,
+    "f1": 0.9920634920634921,
+    "tp": 125,
+    "fp": 0,
+    "fn": 2,
+    "tn": 90,
+    "latency_ms": 12.588341236114502
+  }
+}

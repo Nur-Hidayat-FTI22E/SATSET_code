@@ -90,8 +90,10 @@ def main():
     parser.add_argument("--batch",     type=int,   default=128,                 help="Batch size")
     parser.add_argument("--lr",        type=float, default=1e-3,                help="Learning rate")
     parser.add_argument("--steps",     type=int,   default=16,                  help="SNN timesteps")
-    parser.add_argument("--synthetic", action="store_true",                     help="Use synthetic data")
-    parser.add_argument("--data",      type=str,   default=None,                help="IoT-23 CSV path")
+    parser.add_argument("--synthetic", action="store_true",                     help="Use synthetic data (smoke-test pipeline)")
+    parser.add_argument("--iot23",     type=str,   default=None,                help="Path CSV IoT-23")
+    parser.add_argument("--ciciot",    type=str,   default=None,                help="Path CSV CICIoT2023")
+    parser.add_argument("--edgeiiot",  type=str,   default=None,                help="Path CSV Edge-IIoTset")
     parser.add_argument("--output",    type=str,   default="model/snn_model.pt",help="Model output path")
     args = parser.parse_args()
 
@@ -108,7 +110,9 @@ def main():
 
     # ── Data ────────────────────────────────────────────────
     train_loader, val_loader, scaler_stats = get_dataloaders(
-        csv_path=args.data,
+        iot23_path=args.iot23,
+        ciciot_path=args.ciciot,
+        edgeiiot_path=args.edgeiiot,
         synthetic=args.synthetic,
         batch_size=args.batch,
     )

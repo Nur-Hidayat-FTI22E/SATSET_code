@@ -102,18 +102,44 @@ def load_and_merge_datasets(iot23_path: str, ciciot_path: str, edgeiiot_path: st
     
     return merged_features, merged_labels
 
+# ── Generator Data Sintetis (uji pipeline tanpa dataset besar) ─────────────
+def generate_synthetic(n_per_class: int = 10000, seed: int = 42):
+    """Bangkitkan 6 fitur untuk dua kelas (normal vs attack).
+    Hanya untuk verifikasi jalannya pipeline, BUKAN untuk klaim hasil."""
+    rng = np.random.default_rng(seed)
+    pr_n = rng.normal(120, 40, n_per_class).clip(1, None)
+    ps_n = rng.normal(500, 120, n_per_class).clip(20, None)
+    pr_a = rng.normal(1200, 300, n_per_class).clip(1, None)
+    ps_a = rng.normal(120, 60, n_per_class).clip(20, None)
+    def build(pr, ps):
+        interval = 1.0 / pr
+        cache = pr * 15000.0
+        instr = ps * 50000.0
+        branch = cache * 0.2 + interval * 100.0
+        return np.column_stack([pr, ps, interval, cache, instr, branch])
+    X = np.vstack([build(pr_n, ps_n), build(pr_a, ps_a)]).astype(np.float32)
+    y = np.concatenate([np.zeros(n_per_class), np.ones(n_per_class)]).astype(np.int64)
+    idx = rng.permutation(len(y))
+    return X[idx], y[idx]
+
 # ── Public API ─────────────────────────────────────────────────────────────
 def get_dataloaders(
     iot23_path: str = None, 
     ciciot_path: str = None, 
     edgeiiot_path: str = None,
+    synthetic: bool = False,
     batch_size: int = 128, 
     train_split: float = 0.8
 ) -> tuple[DataLoader, DataLoader, dict]:
     """ Kembalikan Dataloader untuk proses Training SNN. """
     
-    # 1. Load, Extract 6 Features, and Merge
-    X_raw, y = load_and_merge_datasets(iot23_path, ciciot_path, edgeiiot_path)
+    # 1. Load data — sintetis (untuk smoke-test) atau merge dataset nyata
+    no_paths = not any([iot23_path, ciciot_path, edgeiiot_path])
+    if synthetic or no_paths:
+        print("[DataLoader] Mode SINTETIS aktif — membangkitkan data 6-fitur untuk uji pipeline.")
+        X_raw, y = generate_synthetic()
+    else:
+        X_raw, y = load_and_merge_datasets(iot23_path, ciciot_path, edgeiiot_path)
 
     # 2. Min-Max Scaling (BAB III E.1.a)
     print("[DataLoader] Melakukan Min-Max Scaling (0 - 1)...")

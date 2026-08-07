@@ -201,7 +201,7 @@ def encode_telemetry_to_spikes(raw_telemetry, num_steps=50):
     normalized_data = raw_tensor / MAX_THRESHOLDS
     normalized_data = torch.clamp(normalized_data, 0.0, 1.0)
 
-    spike_train = skipegen.rate(normalized_data, num_steps=num_steps)
+    spike_train = spikegen.rate(normalized_data, num_steps=num_steps)
 
     return spike_train
 

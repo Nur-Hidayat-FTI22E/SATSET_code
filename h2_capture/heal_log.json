@@ -1,0 +1,9 @@
+{"timestamp": "2026-08-05T18:11:51.280387", "action": "BLOCK_IP", "ip": "192.168.1.124", "threat_score": null, "heal_count": 0, "cooldown": 3.0}
+{"timestamp": "2026-08-05T18:12:21.296416", "action": "BLOCK_IP", "ip": "192.168.1.191", "threat_score": null, "heal_count": 0, "cooldown": 3.0}
+{"timestamp": "2026-08-05T18:12:59.297215", "action": "BLOCK_IP", "ip": "192.168.1.78", "threat_score": null, "heal_count": 0, "cooldown": 3.0}
+{"timestamp": "2026-08-05T18:13:09.307019", "action": "BLOCK_IP", "ip": "192.168.1.138", "threat_score": null, "heal_count": 0, "cooldown": 3.0}
+{"timestamp": "2026-08-05T18:13:10.285463", "action": "BLOCK_IP", "ip": "192.168.1.58", "threat_score": null, "heal_count": 0, "cooldown": 3.0}
+{"timestamp": "2026-08-05T18:13:14.255949", "action": "BLOCK_IP", "ip": "198.51.100.1", "threat_score": null, "heal_count": 1, "cooldown": 3.0}
+{"timestamp": "2026-08-05T18:13:14.320127", "action": "HEAL", "ip": "198.51.100.1", "threat_score": 0.85, "heal_count": 1, "cooldown": 3.0}
+{"timestamp": "2026-08-05T18:13:21.265982", "action": "BLOCK_IP", "ip": "198.51.100.2", "threat_score": null, "heal_count": 2, "cooldown": 3.0}
+{"timestamp": "2026-08-05T18:13:21.380533", "action": "HEAL", "ip": "198.51.100.2", "threat_score": 0.85, "heal_count": 2, "cooldown": 3.0}

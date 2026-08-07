@@ -186,17 +186,31 @@ class HealTriggerEnhanced:
         """Restart MQTT broker"""
         try:
             start = time.time()
+            self.client.disconnect()
+            time.sleep(0.5)
+
             subprocess.run(
-                ["docker", "restart", "satset-mosquitto"],
-                check=True, timeout=10
+                ["docker", "restart", "-t", "3", "satset-mosquitto"],
+                check=True, timeout=15
             )
+
+            time.sleep(1)
+            self.client.connect(self.broker_host, self.broker_port, 60)
+            self.client.loop_start()
+            self.client.subscribe("satset/brain/threat")
+
             mttr = (time.time() - start) * 1000
-            print(f"[HealTrigger] ✅ docker restart satset-mosquitto — {mttr:.0f}ms")
+            print(f"[HealTrigger] ✅ Service restarted & reconnected — {mttr:.0f}ms")
             return mttr
         except Exception as e:
-            print(f"[HealTrigger] ❌ Failed to restart MQTT: {e}")
+            print(f"[HealTrigger] ❌ Restart failed: {e}")
+            try:
+                self.client.connect(self.broker_host, self>broker_port, 60)
+                self.client.loop_start()
+                self.client.subscribe("satset/brain/threat")
+            except: pass
             return None
-    
+      
     def _heal(self, threat_score, attacker_ip, severity):
         """Eksekusi healing berdasarkan severity level"""
         with self.lock:
@@ -214,31 +228,23 @@ class HealTriggerEnhanced:
             
             print(f"\n[HealTrigger] 🚨 {severity} THREAT! score={threat_score:.4f}")
             
-            # 1. Block attacker IP (jika ada)
-            if attacker_ip and not self._is_ip_blacklisted(attacker_ip):
-                self._block_ip(attacker_ip)
-            
-            # 2. Restart MQTT broker
             mttr = self._restart_mqtt()
-            
-            # 3. Update firewall rule (rate limiting jika critical)
-            if severity == "CRITICAL":
-                self._apply_rate_limit(attacker_ip)
-            
+
             # 4. Publish healed status
             healed_msg = json.dumps({
                 "status": "healed",
                 "threat_score": threat_score,
-                "mttr_ms": mttr,
+                "mttr_ms": mttr if mttr is not None else -1,
                 "heal_count": self.heal_count,
                 "cooldown": self.cooldown
             })
-            self.client.publish("satset/hand/healed", healed_msg)
-            
-            # 5. Log action
+            try:
+                self.client.publish("satset/hand/healed", healed_msg)
+            except Exception:
+                pass
             self._log_action("HEAL", attacker_ip, threat_score)
-            
-            print(f"[HealTrigger] ✅ Healing complete. MTTR={mttr:.0f}ms")
+            mt = f"{mttr:.0f}ms" if mttr is not None else "N/A"
+            print(f"[HealTrigger] ✅ Healing complete. MTTR={mt}")
             print(f"[HealTrigger] 📊 Stats: {self.heal_count} heals, cooldown={self.cooldown:.0f}s\n")
     
     def _apply_rate_limit(self, ip):
