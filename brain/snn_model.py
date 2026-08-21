@@ -40,7 +40,7 @@ class SATSETBrain(nn.Module):
     untuk pelatihan backpropagation melalui waktu (BPTT).
     """
 
-    INPUT_SIZE  = 6
+    INPUT_SIZE  = 4
     HIDDEN_SIZE = 128
     OUTPUT_SIZE = 2   # 0: normal, 1: attack
 

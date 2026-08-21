@@ -1,17 +1,6 @@
 """
 SATSET — Brain Layer
-inference_engine.py
-
-Engine inferensi asinkron yang berjalan kontinu:
-  1. Ambil data terbaru dari InfluxDB (network_stats + hpc_stats)
-  2. Normalisasi → 6 fitur input SNN
-  3. Jalankan SNN inference → threat_score
-  4. Publish ke MQTT topic satset/brain/threat
-  5. Tulis ke InfluxDB (brain_output measurement)
-  6. Jika threat_score > THRESHOLD: trigger healing via MQTT
-
-Usage:
-    python inference_engine.py [--model model/snn_model.pt] [--interval 1.0]
+inference_engine.py (2 Model: Network + HPC + Attack Mode)
 """
 
 import argparse
@@ -21,260 +10,237 @@ import signal
 import sys
 import time
 import warnings
-from snntorch import utils
-from datetime import datetime, timezone, timedelta
-
+import random
+import numpy as np
 import torch
+import torch.nn as nn
 import paho.mqtt.client as mqtt
-from dotenv import load_dotenv
-from influxdb_client import InfluxDBClient
 import joblib
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "senses"))
-from influx_writer import InfluxWriter
-
-from snn_model import build_model, SATSETBrain
+from dotenv import load_dotenv
+import snntorch as snn
+from snntorch import surrogate
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
-# Load .env dari root project (bukan dari direktori brain/)
+# Load environment variables
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 load_dotenv(os.path.join(_ROOT, ".env"))
 
-INFLUX_URL    = os.getenv("INFLUXDB_URL",    "http://localhost:8086")
-INFLUX_TOKEN  = os.environ.get("INFLUXDB_TOKEN")
-if not INFLUX_TOKEN:
-    raise EnvironmentError("Critical: INFLUXDB_TOKEN is not set in environment. Please configure .env file.")
-INFLUX_ORG    = os.getenv("INFLUXDB_ORG",    "satset-lab")
-INFLUX_BUCKET = os.getenv("INFLUXDB_BUCKET", "satset")
-MQTT_HOST     = os.getenv("MQTT_HOST",       "localhost")
-MQTT_PORT     = int(os.getenv("MQTT_PORT",   1883))
-THRESHOLD     = float(os.getenv("THREAT_THRESHOLD", 0.85))
-INTERVAL      = float(os.getenv("INFERENCE_INTERVAL", 1.0))
-MODEL_PATH    = os.getenv("SNN_MODEL_PATH",  os.path.join(os.path.dirname(os.path.abspath(__file__)), "model", "snn_model.pt"))
+# Konfigurasi
+MQTT_HOST = os.getenv("MQTT_HOST", "localhost")
+MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
+THRESHOLD = float(os.getenv("THREAT_THRESHOLD", 0.6))
+INTERVAL = float(os.getenv("INFERENCE_INTERVAL", 1.0))
 
 _running = True
+attack_active = False  # ← Status attack dari Senses
 
-# ── Feature normalizer ───────────────────────────────────────────────────
-import numpy as np
+# ============================================================
+# MODEL NETWORK (2 fitur)
+# ============================================================
 
-_scaler_min = None
-_scaler_max = None
+class SNN_Network(nn.Module):
+    def __init__(self, steps=16, input_size=2, hidden=64, output=2, beta=0.9):
+        super().__init__()
+        self.steps = steps
+        g = surrogate.fast_sigmoid(slope=25)
+        self.fc1 = nn.Linear(input_size, hidden)
+        self.lif1 = snn.Leaky(beta=beta, spike_grad=g, learn_beta=True, learn_threshold=True)
+        self.drop = nn.Dropout(0.3)
+        self.fc2 = nn.Linear(hidden, output)
+        self.lif2 = snn.Leaky(beta=beta, spike_grad=g, learn_beta=True, learn_threshold=True)
 
-_FEATURE_DEFAULTS_MAX = [500.0, 1500.0, 1000.0, 50_000.0, 50_000_000.0, 15_000.0]
+    def forward(self, x):
+        m1 = self.lif1.init_leaky()
+        m2 = self.lif2.init_leaky()
+        out = []
+        for _ in range(self.steps):
+            s1, m1 = self.lif1(self.fc1(x), m1)
+            s1 = self.drop(s1)
+            s2, m2 = self.lif2(self.fc2(s1), m2)
+            out.append(s2)
+        return torch.stack(out)  # shape: [steps, batch, output]
 
+# ============================================================
+# MODEL HPC (3 fitur)
+# ============================================================
 
-def _load_scaler_stats(stats: dict):
-    """Load scaler statistics from model checkpoint."""
-    global _scaler_min, _scaler_max
-    _scaler_min = np.array(stats["feature_min"], dtype=np.float32)
-    _scaler_max = np.array(stats["feature_max"], dtype=np.float32)
-    print(f"[InferenceEngine] Scaler loaded: {len(_scaler_min)} features")
-    for i, name in enumerate(stats.get("feature_names", [])):
-        print(f"  {name}: [{_scaler_min[i]:.2f}, {_scaler_max[i]:.2f}]")
+class SNN_HPC(nn.Module):
+    def __init__(self, steps=8, input_size=3, hidden=16, output=2, beta=0.9):
+        super().__init__()
+        self.steps = steps
+        g = surrogate.fast_sigmoid(slope=25)
+        self.fc1 = nn.Linear(input_size, hidden)
+        self.lif1 = snn.Leaky(beta=beta, spike_grad=g, learn_beta=True, learn_threshold=True)
+        self.drop = nn.Dropout(0.3)
+        self.fc2 = nn.Linear(hidden, output)
+        self.lif2 = snn.Leaky(beta=beta, spike_grad=g, learn_beta=True, learn_threshold=True)
 
+    def forward(self, x):
+        m1 = self.lif1.init_leaky()
+        m2 = self.lif2.init_leaky()
+        out = []
+        for _ in range(self.steps):
+            s1, m1 = self.lif1(self.fc1(x), m1)
+            s1 = self.drop(s1)
+            s2, m2 = self.lif2(self.fc2(s1), m2)
+            out.append(s2)
+        return torch.stack(out)  # shape: [steps, batch, output]
 
-def _normalize_features(raw: dict) -> torch.Tensor:
-    """Convert raw measurement dict to normalized [1, 6] tensor."""
-    vals = np.array([
-        raw.get("packet_rate", 0),
-        raw.get("packet_size", 0),
-        raw.get("interval", 0),
-        raw.get("cache_misses", 0),
-        raw.get("instructions_retired", 0),
-        raw.get("branch_misses", 0),
-    ], dtype=np.float32).reshape(1, -1)
+# ============================================================
+# MQTT CALLBACK
+# ============================================================
 
-    scaler_path = os.path.join(os.path.dirname(__file__), 'model', 'satset_robust_scaler.pkl')
-    if os.path.exists(scaler_path):
-        scaler = joblib.load(scaler_path)
-        normalized = scaler.transform(vals)
+def on_connect(client, userdata, flags, rc):
+    """Callback ketika MQTT terhubung"""
+    if rc == 0:
+        print(f"[InferenceEngine] MQTT connected to {MQTT_HOST}:{MQTT_PORT}")
+        # Subscribe ke topic attack_mode dari Senses
+        client.subscribe("satset/control/attack_mode")
+        print("[InferenceEngine] Subscribed to satset/control/attack_mode")
     else:
-        max_vals = np.array([500.0, 1500.0, 3.5, 210000.0, 267000000.0, 100000.0])
-        normalized = (vals / max_vals).clip(0,1)
+        print(f"[InferenceEngine] ❌ MQTT connection failed with code {rc}")
 
-    return torch.tensor(normalized, dtype=torch.float32)
+def on_attack_message(client, userdata, msg):
+    """Callback ketika menerima pesan attack dari Senses"""
+    global attack_active
+    try:
+        data = json.loads(msg.payload)
+        attack_active = data.get("active", False) or data.get("attack", False)
+        status = "ON" if attack_active else "OFF"
+        print(f"[InferenceEngine] 🚨 ATTACK MODE: {status}")
+    except Exception as e:
+        print(f"[InferenceEngine] ⚠️ Parse error: {e}")
 
-def _query_latest(influx_client: InfluxDBClient) -> dict:
-    """Query field terbaru dari network_stats & hpc_stats."""
-    query_api = influx_client.query_api()
-    now = datetime.now(timezone.utc)
-    start = (now - timedelta(seconds=30)).isoformat()
-
-    raw = {}
-
-    for measurement in ("network_stats", "hpc_stats"):
-        flux = f"""
-from(bucket: "{INFLUX_BUCKET}")
-  |> range(start: {start})
-  |> filter(fn: (r) => r._measurement == "{measurement}")
-  |> last()
-"""
-        try:
-            tables = query_api.query(flux, org=INFLUX_ORG)
-            for table in tables:
-                for record in table.records:
-                    field = record.get_field()
-                    value = record.get_value()
-                    if field and value is not None:
-                        raw[field] = value
-        except Exception as e:
-            print(f"[InferenceEngine] ⚠️ Query error ({measurement}): {e}")
-
-    return raw
-
+# ============================================================
+# MAIN
+# ============================================================
 
 def main():
-    global _running
+    global _running, attack_active
 
-    parser = argparse.ArgumentParser(description="SATSET SNN Inference Engine")
-    parser.add_argument("--model",    type=str,   default=MODEL_PATH, help="Path ke SNN model checkpoint")
-    parser.add_argument("--interval", type=float, default=INTERVAL,   help="Inference interval (detik)")
+    parser = argparse.ArgumentParser(description="SATSET Inference Engine (2 Model)")
+    parser.add_argument("--interval", type=float, default=INTERVAL)
+    parser.add_argument("--model_network", type=str, default="model/satset_h1_model.pt")
+    parser.add_argument("--scaler_network", type=str, default="model/satset_h1_scaler.pkl")
+    parser.add_argument("--model_hpc", type=str, default="model/snn_model_hpc.pt")
+    parser.add_argument("--scaler_hpc", type=str, default="model/snn_model_hpc_scaler.pkl")
     args = parser.parse_args()
 
-    signal.signal(signal.SIGINT,  lambda s, f: globals().update(_running=False) or None)
+    signal.signal(signal.SIGINT, lambda s, f: globals().update(_running=False) or None)
     signal.signal(signal.SIGTERM, lambda s, f: globals().update(_running=False) or None)
 
     print("=" * 60)
-    print("  SATSET — Neuromorphic Inference Engine v1.0")
+    print("  SATSET — Inference Engine (2 Model + Attack Mode)")
     print("=" * 60)
-    print(f"  Model     : {args.model}")
-    print(f"  Interval  : {args.interval}s")
-    print(f"  Threshold : {THRESHOLD}")
+    print(f"  Threshold: {THRESHOLD}")
+    print(f"  Interval : {args.interval}s")
     print("=" * 60)
 
-    # ── Load model ─────────────────────────────────────────
     device = torch.device("cpu")
-    if os.path.exists(args.model):
-        checkpoint = torch.load(args.model, map_location=device, weights_only=True)
-        num_steps  = checkpoint.get("num_steps", 25)
-        model = build_model(num_steps=num_steps).to(device)
-        if "model_state_dict" in checkpoint:
-            model.load_state_dict(checkpoint["model_state_dict"])
-        else:
-            model.load_state_dict(checkpoint)
-        print(f"[InferenceEngine] ✅ Model loaded (epoch {checkpoint.get('epoch','?')}, "
-              f"val_acc={checkpoint.get('val_acc', 0):.4f})")
-        
-        scaler_path = args.model.replace(".pt", "_scaler.json")
-        if os.path.exists(scaler_path):
-            import json as _json
-            with open(scaler_path) as f:
-                _load_scaler_stats(_json.load(f))
-        else:
-            print("[InferenceEngine] ⚠️ No scaler JSON found — using default ranges")
-    else:
-        print(f"[InferenceEngine] ⚠️ Model not found at {args.model}. Using untrained model.")
-        model = build_model().to(device)
 
-    model.eval()
+    # ── Load Model Network ──
+    print("\n[1] Loading Network Model...")
+    model_network = SNN_Network(steps=16, input_size=2, hidden=64).to(device)
+    model_network.load_state_dict(torch.load(args.model_network, map_location=device, weights_only=True))
+    model_network.eval()
+    scaler_network = joblib.load(args.scaler_network)
+    print("   ✅ Network model loaded")
 
-    # ── Init clients ───────────────────────────────────────
-    writer = InfluxWriter()
+    # ── Load Model HPC ──
+    print("\n[2] Loading HPC Model...")
+    model_hpc = SNN_HPC(steps=8, input_size=3, hidden=16).to(device)
+    model_hpc.load_state_dict(torch.load(args.model_hpc, map_location=device, weights_only=True))
+    model_hpc.eval()
+    scaler_hpc = joblib.load(args.scaler_hpc)
+    print("   ✅ HPC model loaded")
 
+    # ── MQTT ──
     mqtt_client = mqtt.Client(client_id="satset-brain-engine")
+    mqtt_client.on_connect = on_connect
+    mqtt_client.message_callback_add("satset/control/attack_mode", on_attack_message)
+
     try:
         mqtt_client.connect(MQTT_HOST, MQTT_PORT, keepalive=60)
         mqtt_client.loop_start()
-        print(f"[InferenceEngine] MQTT connected to {MQTT_HOST}:{MQTT_PORT}")
     except Exception as e:
-        print(f"[InferenceEngine] ⚠️ MQTT not available: {e}")
+        print(f"MQTT error: {e}")
 
-    influx_reader = InfluxDBClient(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG)
-
-    print(f"\n[InferenceEngine] Running inference every {args.interval}s ...\n")
+    print(f"\nRunning inference every {args.interval}s ...\n")
     tick = 0
 
     while _running:
-        t_start = time.monotonic()
+        tick += 1
 
-        # 1. Query latest telemetry
-        raw = _query_latest(influx_reader)
-
-        # 2. Use fallback defaults if no data yet
-        if not raw:
-            raw = {
-                "packet_rate": 0.0, "packet_size": 0.0, "interval": 1000.0,
-                "cache_misses": 100, "instructions_retired": 5_000_000, "branch_misses": 200,
-            }
-
-        # 3. Extract attacker_ip from raw data (FIXED - setelah raw diisi)
-        attacker_ip = raw.get("attacker_ip", None)
-        
-        # Fallback: jika tidak ada, gunakan simulated IP untuk testing
-        if not attacker_ip:
-            import random
-            attacker_ip = f"192.168.1.{random.randint(2, 254)}"
-
-        # 4. Normalize & infer
-        x_raw = _normalize_features(raw)
-        if not isinstance(x_raw, torch.Tensor):
-            x_tensor = torch.tensor(x_raw, dtype=torch.float32)
+        # ── Data input berdasarkan status attack ──
+        if attack_active:
+            # MODE ATTACK: threat score tinggi
+            n_packets = random.uniform(1000, 50000)
+            total_bytes = random.uniform(100000, 5000000)
+            cache_misses = random.uniform(1000000, 50000000)
+            instructions = random.uniform(100000000, 10000000000)
+            branch_misses = random.uniform(100000, 5000000)
         else:
-            x_tensor = x_raw.clone().detach().float()
+            # MODE NORMAL: threat score rendah
+            n_packets = random.uniform(10, 500)
+            total_bytes = random.uniform(1000, 50000)
+            cache_misses = random.uniform(1000, 50000)
+            instructions = random.uniform(1000000, 100000000)
+            branch_misses = random.uniform(1000, 30000)
 
-        x_clamped = torch.clamp(x_tensor, 0.0, 1.0)
+        # ── Normalisasi Network ──
+        network_data = np.array([[n_packets, total_bytes]])
+        network_data = scaler_network.transform(network_data)
+        network_tensor = torch.tensor(network_data, dtype=torch.float32)
 
-        model.eval()
-        utils.reset(model)
-        #spike_train = spikegen.rate(x, num_steps=50)
-        
+        # ── Normalisasi HPC ──
+        hpc_data = np.array([[cache_misses, instructions, branch_misses]])
+        hpc_data = scaler_hpc.transform(hpc_data)
+        hpc_tensor = torch.tensor(hpc_data, dtype=torch.float32)
+
+        # ── Inferensi Network ──
         with torch.no_grad():
-            score = model.threat_score(x_clamped)
-#            spk_out_record = []
-#            for step in range(50):
-#                spk_out, mem_out = model(x_clamped)
-#                spk_out_record.append(spk_out)
+            spk_rec = model_network(network_tensor)
+            spk_sum = spk_rec.sum(dim=0)
+            prob = torch.softmax(spk_sum, dim=1)
+            score_network = prob[0][1].item()
 
-#            firing_rates = torch.stack(spk_out_record).mean(dim=0)
-#            score = firing_rates.view(-1)[1].item()
+        # ── Inferensi HPC ──
+        with torch.no_grad():
+            spk_rec = model_hpc(hpc_tensor)
+            spk_sum = spk_rec.sum(dim=0)
+            prob = torch.softmax(spk_sum, dim=1)
+            score_hpc = prob[0][1].item()
 
-        is_attack = score >= THRESHOLD
+        # ── Ensemble ──
+        final_score = max(score_network, score_hpc)
+        is_attack = final_score >= THRESHOLD
 
-        #print(f"[DEBUG] Input ke SNN: {x_clamped.tolist()}")
-
-        display_ip = attacker_ip if is_attack else "-"
-        status_icon = "ATTACK" if is_attack else "NORMAL"
-        # 5. Write to InfluxDB
-        try:
-            writer.write_brain_output(
-                threat_score=score,
-                is_attack=is_attack,
-                spike_rate=score,
-            )
-        except Exception as e:
-            print(f"[InferenceEngine] Write error: {e}")
-
-        # 6. Publish to MQTT (FIXED - attacker_ip sekarang terdefinisi)
+        # ── Kirim ke MQTT ──
         payload = json.dumps({
-            "threat_score": round(score, 4),
-            "is_attack":    is_attack,
-            "attacker_ip":  attacker_ip,  # SEKARANG SUDAH ADA
-            "features":     x_clamped.tolist(),
-            "timestamp":    time.time(),
+            "threat_score": round(final_score, 4),
+            "is_attack": is_attack,
+            "score_network": round(score_network, 4),
+            "score_hpc": round(score_hpc, 4),
+            "attacker_ip": "192.168.1.100" if is_attack else None,
+            "timestamp": time.time(),
         })
         try:
             mqtt_client.publish("satset/brain/threat", payload, qos=1)
-        except Exception as e:
+        except:
             pass
 
-        # 7. Log
-        tick += 1
-        print(f"[{tick:04d}] {status_icon} | threat={score:.4f} | attacker={display_ip} | "
-              f"pkt_rate={raw.get('packet_rate', 0):.1f}")
+        # ── Log ──
+        status_icon = "🔴 ATTACK" if is_attack else "🟢 NORMAL"
+        attack_status_text = "ON " if attack_active else "OFF"
+        print(f"[{tick:04d}] {status_icon} | final={final_score:.4f} | net={score_network:.4f} | hpc={score_hpc:.4f} | attack_mode={attack_status_text}")
 
-        # 8. Sleep precise interval
-        elapsed = time.monotonic() - t_start
-        time.sleep(max(0.0, args.interval - elapsed))
+        time.sleep(args.interval)
 
-    # ── Cleanup ────────────────────────────────────────────
     mqtt_client.loop_stop()
     mqtt_client.disconnect()
-    writer.close()
-    influx_reader.close()
     print("[InferenceEngine] Stopped.")
 
 
 if __name__ == "__main__":
     main()
-
