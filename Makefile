@@ -79,6 +79,17 @@ attack-fast:
 	@echo -e "$(CYAN)[SATSET] Starting DDoS Attack Simulator (high rate)...$(RESET)"
 	cd senses && $(PYTHON) attack_simulator.py --rate 500 --duration 30
 
+attack-network:
+	@echo -e "$(CYAN)[SATSET] Starting Network Attack...$(RESET)"
+	cd senses && $(PYTHON) attack_network.py --rate 1000 --duration 30
+
+attack-hpc:
+	@echo -e "$(CYAN)[SATSET] Starting HPC Attack...$(RESET)"
+	cd senses && $(PYTHON) attack_hpc.py --duration 30
+
+attack-portscan:
+	@echo -e "$(CYAN)[SATSET] Starting Port Scan Attack...$(RESET)"
+	cd senses && $(PYTHON) attack_portscan.py --rate 500 --duration 30
 # ── Phase 3: Brain (SNN) ──────────────────────────────────────
 
 train:
