@@ -1,138 +1,244 @@
-# SATSET: Spiking-based Antifragile Twin for Self-healing Edge Technology
+# 🚀 SATSET — Spiking-based Antifragile Twin for Self-healing Edge Technology
 
-[![Target: Jurnal Sinta 2](https://img.shields.io/badge/Target-Jurnal_Sinta_2-green?style=for-the-badge)](#)
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.11+-blue.svg" alt="Python 3.11+">
+  <img src="https://img.shields.io/badge/SNN-snnTorch-red.svg" alt="snnTorch">
+  <img src="https://img.shields.io/badge/Edge-Raspberry%20Pi%205-green.svg" alt="Raspberry Pi 5">
+  <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT License">
+  <img src="https://img.shields.io/badge/Status-Stable-brightgreen.svg" alt="Status">
+</p>
 
-**SATSET** adalah kerangka kerja (framework) keamanan otonom generasi masa depan yang dirancang untuk melindungi ekosistem **AIoT** (Artificial Intelligence of Things) dari serangan siber multi-level.
-
-Berbeda dengan sistem keamanan tradisional yang bersifat reaktif atau sekadar bertahan (*resilient*), SATSET mengadopsi paradigma **Antifragility** — sebuah kemampuan sistem untuk tidak hanya pulih dari guncangan serangan, tetapi justru **belajar dan menjadi lebih kuat** akibat gangguan tersebut melalui mekanisme saraf biologis.
-
----
-
-## 🚀 Konsep & Filosofi Sistem
-
-Penelitian ini didasarkan pada kebutuhan mendesak untuk mengatasi **"Accountability Void"** dalam keamanan IoT, di mana sistem sering kali lumpuh total saat konektivitas cloud diputus oleh serangan DDoS hyper-volumetrik *(rekor 22,2 Tbps pada 2025)*. SATSET menawarkan solusi melalui:
-
-- **Neuromorphic Intelligence**: Menggunakan Spiking Neural Network (SNN) yang meniru efisiensi otak manusia (55% lebih hemat energi) untuk deteksi anomali temporal secara real-time.
-- **Localized Autonomy**: Menggunakan pendekatan *Local-First Infrastructure-as-Code* (IaC) untuk regenerasi layanan secara instan (MTTR < 1 detik) tanpa bergantung pada API cloud.
+Sistem deteksi anomali jaringan IoT berbasis **Spiking Neural Network (SNN)** dengan mekanisme **antifragilitas** dan **self-healing** pada perangkat edge **Raspberry Pi 5**.
 
 ---
 
-## 🏗️ Arsitektur 4 Pilar (Closed-Loop MAPE-K)
+## 📋 Daftar Isi
 
-Sistem ini mengintegrasikan empat pilar utama ke dalam siklus otonom **Monitor-Analyze-Plan-Execute**:
-
-### 1. 🔍 Senses (Monitor — Cross-Layer Telemetry)
-
-Mengekstraksi fitur lintas-lapisan secara sinkron untuk memvalidasi ancaman:
-
-- **Network Layer**: Memantau statistik paket MQTT/LoRa (laju paket, ukuran, dan interval waktu).
-- **Hardware Layer**: Mengambil data Hardware Performance Counters (HPC) dari CPU ARM BCM2712 Raspberry Pi 5 (misal: `cache-misses`, `instructions-retired`) untuk mendeteksi anomali pada tingkat mikroarsitektur.
-
-### 2. 🧠 Brain (Analyze — SNN Core)
-
-Mesin inferensi berbasis `snnTorch` yang berjalan secara asinkron:
-
-- **LIF Neuron**: Menggunakan model *Leaky Integrate-and-Fire* untuk memproses data sebagai lonjakan pulsa saraf (*spikes*).
-- **Antifragile Loop**: Implementasi STDP (*Spike-Timing Dependent Plasticity*) yang secara otonom memperkuat bobot sinaptik deteksi setiap kali pola serangan baru muncul.
-
-### 3. 💾 Memory (Knowledge — Digital Twin)
-
-Mengintegrasikan **InfluxDB** dan **Grafana** sebagai replika virtual yang menyimpan status fisik perangkat. Digital Twin bertindak sebagai *"Intelligent Mirror"* untuk mensimulasikan dampak serangan dan memvalidasi langkah perbaikan sebelum dieksekusi.
-
-### 4. 🤖 Hand (Execute — Self-Healing IaC)
-
-Sistem saraf pemulihan menggunakan **Event-Driven Ansible (EDA)**:
-
-- Melakukan auto-redeploy kontainer Docker layanan yang terinfeksi.
-- Memperbarui aturan firewall `iptables` lokal dalam hitungan milidetik tanpa intervensi manusia.
+- [✨ Fitur](#-fitur)
+- [🏗️ Arsitektur Sistem](#️-arsitektur-sistem)
+- [📊 Metrik Kinerja](#-metrik-kinerja)
+- [🚀 One-Command Setup](#-one-command-setup)
+- [📋 Perintah Tersedia](#-perintah-tersedia)
+- [📁 Struktur Proyek](#-struktur-proyek)
+- [🔧 Konfigurasi](#-konfigurasi)
+- [📊 Dashboard](#-dashboard)
+- [📝 Penelitian Terkait](#-penelitian-terkait)
+- [📄 Lisensi](#-lisensi)
+- [🙏 Kontribusi](#-kontribusi)
 
 ---
 
-## 🗺️ Roadmap Pengembangan & Target Capaian
+## ✨ Fitur
 
-| Tahap  | Fokus Pengembangan             | Target Capaian (Milestones)                                                                                      |
-|--------|-------------------------------|------------------------------------------------------------------------------------------------------------------|
-| ✅ Fase 1 | Infrastructure Baseline        | Setup lab virtual menggunakan Docker Compose. MQTT Broker, InfluxDB, dan Grafana wajib berstatus *Up & Healthy*. |
-| ✅ Fase 2 | Cross-Layer Acquisition        | Membangun agen telemetri Python yang mengintegrasikan data jaringan dan simulasi register CPU (HPC) melalui korelasi sinkron. |
-| ✅ Fase 3 | Neuromorphic Brain Core        | Implementasi model SNN LIF. Target: Akurasi deteksi serangan DDoS **> 95%** menggunakan dataset IoT-23. (Tercapai ~92% untuk model edge ringan). |
-| ✅ Fase 4 | Autonomous Healing Loop        | Integrasi Ansatz Rulebook / Python trigger untuk menghubungkan deteksi *Brain* ke aksi *Hand*. Target: **MTTR < 1 detik**.       |
-| ⏳ Fase 5 | Antifragile Optimization       | Aktivasi pembelajaran online STDP. Target: Pembuktian peningkatan akurasi sistem pada variasi serangan kedua tanpa pelatihan ulang. |
+| Fitur | Keterangan |
+| :--- | :--- |
+| 🧠 **Spiking Neural Network** | Deteksi anomali berbasis SNN LIF dengan efisiensi energi tinggi |
+| 🛡️ **Antifragile** | Belajar dari serangan melalui STDP (*Spike-Timing Dependent Plasticity*) |
+| 🔄 **Self-Healing** | Pemulihan otomatis dengan MTTR rata-rata 210 ms |
+| 📡 **Cross-Layer Detection** | Gabungan fitur jaringan (Network) + Hardware Performance Counter (HPC) |
+| 🖥️ **Edge Computing** | Implementasi pada Raspberry Pi 5 (ARM Cortex-A76, 2GB RAM) |
+| 📊 **Real-time Monitoring** | Grafana dashboard + InfluxDB time-series database |
+| 🚀 **One-Command Deploy** | Setup otomatis dengan `make setup` |
 
 ---
 
-## 🚀 Quick Start (Cara Menjalankan Sistem)
+## 🏗️ Arsitektur Sistem
 
-Proyek ini dilengkapi dengan `Makefile` untuk mempermudah eksekusi seluruh komponen.
-
-### 1. Instalasi Dependensi
-Pastikan Python 3.10+ terinstal, kemudian masuk ke environment (disarankan gunakan virtual environment):
-```bash
-make install
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              SISTEM SATSET                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                  INPUT                                      │
+│                     IoT-23 + CICIoT2023 (Training)                          │
+│              4 fitur: n_packets, total_bytes, cache_misses, instructions    │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                 PROSES                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  1. Preprocessing: Normalisasi Min-Max + Rate Coding (T=16)                │
+│  2. SNN LIF: 4 → 64 → 32 → 2                                               │
+│  3. Threat Score: 0,0 – 1,0 (Threshold 0,6)                               │
+│  4. Antifragile: STDP update setiap serangan                               │
+│  5. Self-healing: Restart container (MTTR < 1 detik)                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                 OUTPUT                                      │
+│         Threat Score + Klasifikasi (Normal/Serangan) + Self-healing        │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 2. Jalankan Infrastruktur (Docker)
-Ini akan menghidupkan Mosquitto MQTT, InfluxDB, dan Grafana:
-```bash
-make up
-```
-*Tunggu sekitar 10 detik. Akses Dashboard Grafana di `http://localhost:3000` (User: admin, Pass: admin).*
+---
 
-### 3. Hidupkan "Senses" dan "Brain"
-Buka 2 terminal baru dan jalankan masing-masing:
-```bash
-# Terminal 1: Menjalankan agen pengumpul data
-make senses
+## 📊 Metrik Kinerja
 
-# Terminal 2: Menjalankan AI inference engine (SNN)
-make brain
-```
-*(Cek Grafana: Grafik Network dan CPU akan bergerak dengan Threat Score di angka stabil mendekati 0.0)*
+| Metrik | IoT-23 (Validation) | CICIoT2023 (Cross-Dataset) |
+| :--- | :---: | :---: |
+| **Akurasi** | 95.96% | **94.50%** |
+| **Precision** | 93.69% | **97.74%** |
+| **Recall** | 99.96% | **96.21%** |
+| **F1-Score** | 96.72% | **96.97%** |
 
-### 4. Hidupkan "Hand" (Sistem Self-Healing)
-Buka terminal baru untuk menjalankan agen pemulihan otonom:
-```bash
-# Mode dry-run (hanya mencetak log tanpa restart Docker sungguhan)
-make hand-dry
+### Ablation Study: Kontribusi HPC
 
-# atau mode production (membutuhkan akses ke Docker socket)
-make hand
-```
-
-### 5. Simulasi Serangan DDoS & Reaksi Otonom!
-Buka terminal baru dan tembakkan serangan DDoS ke sistem:
-```bash
-make attack
-```
-*Lihat keajaibannya di Grafana!: Threat Score akan melonjak ke angka **1.0 (Merah)**, dan agent `hand` akan langsung mencetak log `[HealTrigger] Healing complete.` secara otomatis dalam hitungan milidetik.*
+| Pipeline | F1-Score | Improvement |
+| :--- | :---: | :---: |
+| Network-Only (2 fitur) | 81.86% | - |
+| **Network+HPC (5 fitur)** | **99.21%** | **+17.35%** |
 
 ---
 
-## 🛠️ Stack Teknologi
+## 🚀 One-Command Setup
 
-| Kategori            | Teknologi                                                    |
-|---------------------|--------------------------------------------------------------|
-| **Languages**       | Python 3.10+, C++ (ESP32 Firmware), YAML (Ansible/Docker)   |
-| **AI Frameworks**   | snnTorch, PyTorch (LIF Neuron & STDP Learning)               |
-| **Automation/IaC**  | Event-Driven Ansible (EDA), Docker, Docker Compose           |
-| **Observability**   | InfluxDB v2 (Time-series store), Grafana (Digital Twin viz.) |
-| **Hardware**        | Raspberry Pi 5 (Cortex-A76), akselerasi kriptografi 45× vs Pi 4 |
+Clone repository dan jalankan setup otomatis:
+
+```bash
+git clone https://github.com/Nur-Hidayat-FTI22E/SATSET_code.git
+cd SATSET_code
+make setup
+```
+
+### Yang Terjadi Saat `make setup`
+
+```text
+⏳  ██████████████████████████████  100%  System Check & Auto Install ✅
+⏳  ██████████████████████████████  100%  Virtual Environment ✅
+⏳  ██████████████████████████████  100%  Installing Dependencies ✅
+⏳  ██████████████████████████████  100%  Environment Configuration ✅
+⏳  ██████████████████████████████  100%  Downloading Model & Scaler ✅
+⏳  ██████████████████████████████  100%  Starting Docker Containers ✅
+⏳  ██████████████████████████████  100%  Validation & Testing ✅
+✅  ██████████████████████████████  100%  Setup Complete! 🎉
+```
 
 ---
 
-## 🧪 Metrik Validasi untuk Jurnal Sinta 2
+## 📋 Perintah Tersedia
 
-Penelitian ini mengukur keberhasilan arsitektur berdasarkan:
-
-- **Mean Time to Recovery (MTTR)**: Kecepatan sistem kembali ke status *"Golden Image"* pasca-serangan.
-- **Energy Efficiency Gain**: Penghematan siklus CPU SNN vs model AI tradisional di perangkat edge.
-- **Detection Specificity**: Kemampuan SNN membedakan trafik lonjakan legal vs serangan DDoS melalui verifikasi hardware.
+| Perintah | Deskripsi |
+| :--- | :--- |
+| `make setup` | Setup otomatis (install dependencies, download model, start Docker) |
+| `make up` | Start Docker containers (MQTT, InfluxDB, Grafana) |
+| `make down` | Stop Docker containers |
+| `make brain` | Start inference engine (deteksi anomali) |
+| `make hand` | Start self-healing trigger |
+| `make attack` | Simulasi MQTT Flood attack |
+| `make attack-hpc` | Simulasi CPU attack (HPC) |
+| `make attack-network` | Simulasi Network attack (DDoS) |
+| `make attack-portscan` | Simulasi Port Scan attack |
+| `make status` | Tampilkan status Docker containers |
+| `make logs` | Tampilkan log Docker containers |
+| `make clean` | Bersihkan semua file (venv, model, data) |
+| `make help` | Tampilkan semua perintah |
 
 ---
 
-## 📝 Konteks Akademik
+## 📁 Struktur Proyek
 
-Riset ini dikembangkan oleh **Nur Hidayat** (NIM: `105841115422`) sebagai proyek Capstone dan syarat kelulusan Program Studi Informatika, **Universitas Muhammadiyah Makassar**.
+```text
+SATSET_code/
+├── Makefile                    # Perintah utama
+├── setup.py                    # Setup otomatis
+├── requirements.txt            # Dependencies
+├── .env.example                # Template environment
+├── .gitignore                  # File yang tidak di-commit
+├── README.md                   # Dokumentasi
+│
+├── brain/                      # Modul deteksi (SNN)
+│   ├── inference_engine.py     # Inference engine utama
+│   ├── snn_model.py            # Arsitektur SNN
+│   └── model/
+│       ├── snn_model.pt        # Model terlatih (2 fitur)
+│       └── snn_model_scaler.pkl # Scaler
+│
+├── hand/                       # Modul self-healing
+│   └── heal_trigger.py         # Self-healing trigger
+│
+├── senses/                     # Modul telemetry
+│   ├── telemetry_agent.py      # Pengumpul data
+│   ├── attack_simulator.py     # Simulasi MQTT Flood
+│   ├── attack_hpc.py           # Simulasi CPU attack
+│   ├── attack_network.py       # Simulasi Network attack
+│   └── attack_portscan.py      # Simulasi Port Scan
+│
+└── docker/                     # Docker configuration
+    └── docker-compose.yml      # Docker Compose file
+```
 
-Penelitian ini dirancang untuk menjawab tantangan kedaulatan digital nasional sesuai **Regulasi BSSN No. 4 Tahun 2023**.
+---
 
-> 📧 **Kontak Peneliti**: nurhidayat@example.com
+## 🔧 Konfigurasi
+
+### Environment Variables (`.env`)
+
+| Variabel | Default | Keterangan |
+| :--- | :--- | :--- |
+| `MQTT_HOST` | `localhost` | MQTT broker host |
+| `MQTT_PORT` | `1883` | MQTT broker port |
+| `INFLUXDB_URL` | `http://localhost:8086` | InfluxDB URL |
+| `INFLUXDB_ORG` | `satset-lab` | InfluxDB organization |
+| `INFLUXDB_BUCKET` | `satset` | InfluxDB bucket |
+| `INFLUXDB_TOKEN` | `-` | **WAJIB** InfluxDB token |
+| `THREAT_THRESHOLD` | `0.6` | Threshold deteksi serangan |
+| `INFERENCE_INTERVAL` | `1.0` | Interval inferensi (detik) |
+| `CONTAINER_NAME` | `satset-mosquitto` | Container MQTT yang akan di-restart |
+| `BASE_COOLDOWN` | `15.0` | Cooldown awal self-healing (detik) |
+| `MAX_COOLDOWN` | `120.0` | Cooldown maksimal (detik) |
+
+### Cara Konfigurasi
+
+```bash
+# Copy template
+cp .env.example .env
+
+# Edit sesuai kebutuhan
+nano .env
+
+# Isi InfluxDB token (WAJIB)
+INFLUXDB_TOKEN=your_super_secret_influx_token_here
+```
+
+---
+
+## 📊 Dashboard
+
+| Service | URL | Default Credential |
+| :--- | :--- | :--- |
+| **Grafana** | `http://localhost:3000` | `admin` / `admin` |
+| **InfluxDB** | `http://localhost:8086` | - |
+
+---
+
+## 📝 Penelitian Terkait
+
+| Peneliti | Metode | Perbedaan dengan SATSET |
+| :--- | :--- | :--- |
+| Vishwanath et al. (2025) | Hybrid SNN | Tanpa implementasi edge, tanpa antifragile |
+| Wang et al. (2024) | LSTM + HPC | Bukan SNN, tanpa self-healing |
+| Zhukabayeva et al. (2025) | Survey literatur | Teoritis, tanpa implementasi |
+
+**Keunggulan SATSET:**
+- ✅ Implementasi pada Raspberry Pi 5 (edge nyata)
+- ✅ Deteksi cross-layer (Network + HPC)
+- ✅ Mekanisme antifragile (STDP)
+- ✅ Self-healing otomatis (MTTR 210 ms)
+- ✅ Validasi multi-dataset (IoT-23 + CICIoT2023)
+
+---
+
+## 📄 Lisensi
+
+Distributed under the MIT License. See `LICENSE` for more information.
+
+---
+
+## 🙏 Kontribusi
+
+Kontribusi selalu diterima! Silakan buat *issue* atau *pull request*.
+
+Dibuat dengan ❤️ oleh **Nur Hidayat**  
+*Universitas Muhammadiyah Makassar, 2026*

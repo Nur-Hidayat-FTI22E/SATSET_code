@@ -1,46 +1,33 @@
+# Virtual Environment
+venv/
+.env
+
 # Python
 __pycache__/
-*.py[cod]
+*.pyc
 *.pyo
 *.pyd
-.Python
-*.egg-info/
-dist/
-build/
-.eggs/
+*.so
 
-# Virtual environments
-venv/
-.venv/
-env/
-.env.local
+# Model files
+*.pt
+*.pkl
 
-# SNN models (large files)
-brain/model/snn_model.pt
-brain/model/snn_model_antifragile_*.pt
-
-# Dataset (IoT-23 — download manually)
+# Data
 data/
-dataset/
-*.csv.gz
-*.pcap
-
-# Docker volumes (managed by Docker, not git)
-mosquitto/data/
-mosquitto/log/
 
 # IDE
-.idea/
 .vscode/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
+.idea/
 
 # Logs
 *.log
 
-# Secrets — override locally, never commit actual tokens
-.env
+# Docker
+docker/mosquitto_data/
+docker/influxdb_data/
+docker/grafana_data/
+
+# OS
+.DS_Store
+Thumbs.db
